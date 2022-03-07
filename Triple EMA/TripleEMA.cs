@@ -26,13 +26,16 @@ namespace cAlgo
 
 
 
-    [Cloud("Fast Cloud", "Slow Cloud", FirstColor = "Green", SecondColor = "Green")]
+    [Cloud("Fast Cloud", "Slow Cloud", FirstColor = "Red", SecondColor = "Red")]
     [Cloud("Fast Cloud Full", "Slow Cloud Full", FirstColor = "Blue", SecondColor = "Blue")]
+    [Cloud("Fast Cloud In Zone", "Slow Cloud In Zone", FirstColor = "#FF01FF01", SecondColor = "#FF01FF01")]
     [Indicator(IsOverlay = true, TimeZone = TimeZones.UTC, AutoRescale = false, AccessRights = AccessRights.None)]
     public partial class TripleEMA : Indicator
     {
 
         #region Parameters
+
+        #region General Parameters
 
         [Parameter("Source", DefaultValue = "Close", Group = "General")]
         public DataSeries Source { get; set; }
@@ -45,6 +48,44 @@ namespace cAlgo
 
         [Parameter("Moving average type", DefaultValue = MovingAverageType.Exponential, Group = "General")]
         public MovingAverageType MAType { get; set; }
+
+        #endregion
+
+
+
+
+        #region Tuning Parameters
+
+        [Parameter("Cloud pip distance. Increase or decrease proportional to spread.", DefaultValue = 2.7)]
+        public double PipDistance { get; set; }
+
+        [Parameter("Pip buffer % to trigger 50ema trades", DefaultValue = 6, Step = 0.1)]
+        public double InnerEpsilonPercent { get; set; }
+
+        [Parameter("Pip buffer zone % to trigger 25ema trades", DefaultValue = 2.5, Step = 0.1)]
+        public double OuterEpsilonPercent { get; set; }
+
+        [Parameter("Min bars needed after crossing slow EMA, and has closed outside zone", DefaultValue = 3)]
+        public int MinBarsAfterClose { get; set; }
+
+        [Parameter("Min bars needed after crossing slow EMA, but hasn't closed outside zone", DefaultValue = 7)]
+        public int MinBarsAfterCross { get; set; }
+
+        [Parameter("Minimum bars zone is open to count as trend", DefaultValue = 7)]
+        public int MinimumBarsForTrend { get; set; }
+
+        [Parameter("Minimum % of total EMA distance that fast to medium EMA needs to be", DefaultValue = 13)]
+        public double MinimumFirstZonePercent { get; set; }
+
+        [Parameter("Minimum % of total EMA distance that medium to slow EMA needs to be", DefaultValue = 13)]
+        public double MinimumSecondZonePercent { get; set; }
+
+        #endregion
+
+
+
+
+        #region MA Parameters
 
         [Parameter(DefaultValue = 25, Step = 1, Group = "Fast MA Parameters")]
         public int FastMAPeriods { get; set; }
@@ -71,25 +112,9 @@ namespace cAlgo
         public int SlowMAAveragePeriods { get; set; }
 
         [Parameter(DefaultValue = 1.8, Step = 0.1, Group = "Slow MA Parameters")]
-        public double SlowMAAverageWeighting { get; set; }
+        public double SlowMAAverageWeighting { get; set; } 
 
-        [Parameter("Cloud pip distance. Increase or decrease proportional to spread.", DefaultValue = 2.7)]
-        public double PipDistance { get; set; }
-
-        [Parameter("Min bars needed after crossing slow EMA, and has closed outside zone", DefaultValue = 3)]
-        public int MinBarsAfterClose { get; set; }
-
-        [Parameter("Min bars needed after crossing slow EMA, but hasn't closed outside zone", DefaultValue = 7)]
-        public int MinBarsAfterCross { get; set; }
-
-        [Parameter("Minimum bars zone is open to count as trend", DefaultValue = 7)]
-        public int MinimumBarsForTrend { get; set; }
-
-        [Parameter("Minimum % of total EMA distance that fast to medium EMA needs to be", DefaultValue = 13)]
-        public double MinimumFirstZonePercent { get; set; }
-
-        [Parameter("Minimum % of total EMA distance that medium to slow EMA needs to be", DefaultValue = 13)]
-        public double MinimumSecondZonePercent { get; set; }
+        #endregion
 
         #endregion
 
@@ -118,11 +143,26 @@ namespace cAlgo
         [Output("Slow Cloud Full", LineColor = "Transparent", PlotType = PlotType.DiscontinuousLine)]
         public IndicatorDataSeries SlowCloudFull { get; set; }
 
+        [Output("Fast Cloud In Zone", LineColor = "Transparent", PlotType = PlotType.DiscontinuousLine)]
+        public IndicatorDataSeries FastCloudInZone { get; set; }
+
+        [Output("Slow Cloud In Zone", LineColor = "Transparent", PlotType = PlotType.DiscontinuousLine)]
+        public IndicatorDataSeries SlowCloudInZone { get; set; }
+
         [Output("Take Profit 1", LineColor = "#00E08A", Thickness = 2,PlotType = PlotType.DiscontinuousLine)]
         public IndicatorDataSeries TakeProfitLine1 { get; set; }
 
+        [Output("Inner Epsilon Line", LineColor = "Green", Thickness = 1, PlotType = PlotType.DiscontinuousLine)]
+        public IndicatorDataSeries InnerEpsilonLine { get; set; }
+
+        [Output("Outer Epsilon Line", LineColor = "Green", Thickness = 1, PlotType = PlotType.DiscontinuousLine)]
+        public IndicatorDataSeries OuterEpsilonLine { get; set; }
+
         [Output("EMA Distance", LineColor = "Transparent")]
         public IndicatorDataSeries EMADistanceOutput { get; set; }
+
+        [Output("Inner Zone Percentage", LineColor = "Transparent")]
+        public IndicatorDataSeries InnerZonePercentOutput { get; set; }
 
         #endregion
 
@@ -160,6 +200,7 @@ namespace cAlgo
         private Func<int, bool> CrossedSlowEMADown { get { return (index) => Bars[index].High >= Result3[index]; }  }
         private Func<int, bool> CrossedSlowEMAUp { get { return (index) => Bars[index].Low <= Result3[index]; }  }
 
+
         private int BarCrossedIndex { get; set; }
 
         private List<IndicatorDataSeries> ZoneOutputs { get; set; } 
@@ -178,9 +219,10 @@ namespace cAlgo
                                                                                  SlowMAAverageWeighting);
             ZoneOutputs = new List<IndicatorDataSeries>
             {
-                FastCloud, FastCloudFull,
-                SlowCloud, SlowCloudFull,
+                FastCloud, FastCloudFull, FastCloudInZone,
+                SlowCloud, SlowCloudFull, SlowCloudInZone,
                 TakeProfitLine1,
+                InnerEpsilonLine, OuterEpsilonLine
             };
             //CrossedSlowEMADown = (index) => Bars[index].High >= Result3[index];
             //CrossedSlowEMAUp = (index) => Bars[index].Low <= Result3[index];
@@ -205,6 +247,11 @@ namespace cAlgo
             if (EMAZoneIsOpen(prevBarIndex))
             {
                 TrendCount++;
+                DrawZone(prevBarIndex);
+                //if switch colour from previous index, then set previous index, and remove the previous cloud one
+                //only do that if it changes.
+                //e.g. if price goes in zone, then we change from blue to green. but don't want to be "changing" it 
+                //on every tick. so check if the current cloud has changed from the previous one.
             }
             else
             {
@@ -232,7 +279,8 @@ namespace cAlgo
             Result3[index] = SlowEMA.Result[index];
 
             EMADistanceOutput[index] = (FastEMA.Result[index] - SlowEMA.Result[index]) / Symbol.PipSize;
-
+            var firstZoneDistance = FastEMA.Result[index] - MedEMA.Result[index];
+            InnerZonePercentOutput[index] = 100 * firstZoneDistance / Symbol.PipSize / EMADistanceOutput[index];
 
             //increment trendcount if not lastbar cus then we know.
 
@@ -292,20 +340,72 @@ namespace cAlgo
             BarCrossedIndex = index;
             ConditionMet = false;
         }
+
+        private double PriceWick(int index)
+        {
+            if (IsLastBar)
+                return Price;
+            else
+            {
+                return Direction == TrendDirection.Up ? Bars[index].Low : Bars[index].High;
+            }
+        }
+
+        private bool CrossedZone(int index)
+        {
+            var dir = (int)Direction;
+            return dir * (WickCross(index) - Result3[index]) <= 0;
+        }
+
+        private double WickCross(int index)
+        {
+            return Direction == TrendDirection.Up ? Bars[index].Low : Bars[index].High;
+        }
+
+        private bool PriceIsInZone(int index)
+        {
+            var price = PriceWick(index);
+            var dir = (int)Direction;
+
+            return dir * (price - OuterEpsilonLine[index]) <= 0; //Direction = -1
+        }
+
+
+        private IndicatorDataSeries PrevFastCloud { get; set; }
+        private IndicatorDataSeries PrevSlowCloud { get; set; }
+        /// <summary>
+        /// Set values for the clouds
+        /// </summary>
+        /// <param name="index"></param>
         private void DrawZone(int index)
         {
-            //Set values for cloud EMAs
-
             TakeProfitLine1[index] = MedEMA.Result[index] + (FastEMA.Result[index] - MedEMA.Result[index]) * 2;
 
-            var angleAbove = TripleMASlopeAverage.AngleAbove(index);
-            var fastCloud = angleAbove ? FastCloudFull : FastCloud;
-            var slowCloud = angleAbove ? SlowCloudFull : SlowCloud;
+            InnerEpsilonLine[index] = MedEMA.Result[index] + EMADistanceOutput[index] * (InnerEpsilonPercent * Symbol.PipSize) / 100;
+            OuterEpsilonLine[index] = FastEMA.Result[index] + EMADistanceOutput[index] * (OuterEpsilonPercent * Symbol.PipSize) / 100;
+            
+            var priceIsInZone = PriceIsInZone(index);
 
-            //fastCloud[index - 1] = FastEMA.Result[index - 1];
+            var angleAbove = TripleMASlopeAverage.AngleAbove(index);
+            var fastCloud = !angleAbove ? FastCloud : priceIsInZone ? FastCloudInZone : FastCloudFull;
+            var slowCloud = !angleAbove ? SlowCloud : priceIsInZone ? SlowCloudInZone : SlowCloudFull;
+
+            if (PrevFastCloud == null)
+            {
+                PrevFastCloud = fastCloud;
+                PrevSlowCloud = slowCloud;
+            }
+            else if (PrevFastCloud != fastCloud && double.IsNaN(PrevFastCloud[index]))
+            {
+                //switch
+                PrevFastCloud[index] = FastEMA.Result[index];
+                PrevSlowCloud[index] = SlowEMA.Result[index];
+                PrevFastCloud = fastCloud;
+                PrevSlowCloud = slowCloud;
+            }
+
             fastCloud[index] = FastEMA.Result[index];
 
-            //slowCloud[index - 1] = SlowEMA.Result[index - 1];
             slowCloud[index] = SlowEMA.Result[index];
         }
 
@@ -349,6 +449,7 @@ namespace cAlgo
             Text += "Calculated Risk Amount : " + Symbol.NormalizeVolumeInUnits(riskUnits, RoundingMode.Down) * riskPerUnit + "\n";
             Text += "Stop Loss Pips : " + stopLoss + "\n";
             Text += "EMADistance : " + EMADistanceOutput[index] + "\n";
+            Text += "Inner Zone % : " + InnerZonePercentOutput[index] + "\n";
             Text += "Margin for 0.5%: " + requiredMargin + "\n";
             Text += "Lots for £300: " + lotsForMargin + "\n";
             Text += "Vol for £300: " + volForMargin + "\n";
@@ -458,8 +559,6 @@ namespace cAlgo
         /// <returns></returns>
         private bool EMAZoneIsOpen(int index)
         {
-            // Okay so WaitingToCrossEMA is handling the cooldonw stuff.
-
             //TODO: change trend conditions to properly terminate zone when it crosses slowEMA on the LAST BAR
             //TODO: so basically, if it's last bar, and bid/ask crosses slowEMA, then we go on cooldown.
             //can set CrossedSlowEMA or do something else.
@@ -472,11 +571,29 @@ namespace cAlgo
             //A >= 4B or vice versa? or is it and?
             //So neither distance smaller than percentage/ratio/whatever
 
-            
+            //DOWN
+            /*return Result1[index] - Result2[index] < 0
+            && Result2[index] - Result3[index] < 0
+            && (IsLastBar ? Symbol.Bid : Source[index]) <= Result3[index]
+            && Bars[index].High <= Result3[index];*/
+            //close hasn't crossed slowema
+            //for historical bars, we don't care if it closed inside zone or not, we just don't want the wick to cross it.
+            //if wick crosses it doesn't matter if close or not.
 
-            var trendDirection =  GetTrendDirection(index);
+            //high/low hasn't crossed slow ema
+            var emaDirection =  GetEMADirection(index);
+            if (CrossedZone(index))
+                return ConditionMet = false;
+            //DOWN high cross slowema
 
-            var emaDistance = (double)trendDirection * EMADistanceOutput[index];
+            // 6 - 5 >= 0
+            // 5 - 5 >= 0
+            // 4 - 5 <= 0
+            //Bars[index].High - Result3[index] >= 0
+            //UP low cross slowema
+            //Bars[index].Low - Result3[index] <= 0
+
+            var emaDistance = (double)emaDirection * EMADistanceOutput[index];
 
             var firstZoneDistance = FastEMA.Result[index] - MedEMA.Result[index];
 
@@ -489,21 +606,26 @@ namespace cAlgo
             return ConditionMet;
         }
 
-        private TrendDirection GetTrendDirection(int index)
+        private TrendDirection GetEMADirection(int index)
         {
-            if (TrendDownCondition(index))
+            var emasDisjoint = EMAsDisjoint(index);
+
+            if (emasDisjoint)
             {
-                //Debugger.Break();
-                /*Print("DOWN {0} - Result1: {1}; Result2: {2}; Result3: {3}; Bid/Ask: {4},{5}",
-                    index, Result1[index], Result2[index], Result3[index], Symbol.Bid, Symbol.Ask);*/
-                Direction = TrendDirection.Down;
-            }
-            else if (TrendUpCondition(index))
-            {
-                //Debugger.Break();
-                /*Print("UP {0} - Result1: {1}; Result2: {2}; Result3: {3}; Bid/Ask: {4},{5}",
-                    index, Result1[index], Result2[index], Result3[index], Symbol.Bid, Symbol.Ask);*/
-                Direction = TrendDirection.Up;
+                //get the direction.
+                //either use fast - slow, or calculate from EMAsDisjoint
+                //is going to ues fast-slow somewhere else then might as well do it here to avoid additional operation, assuming that usage of emasdisjoint and
+                //fast - slow is 1 to 1.
+
+                //check close price has not crossed slowema
+                //check high price has not crossed slowema
+
+                Direction = EMADistanceOutput[index] > 0 ? TrendDirection.Up : TrendDirection.Down;
+                /*return Result1[index] - Result2[index] < 0
+               && Result2[index] - Result3[index] < 0
+               && (IsLastBar ? Symbol.Bid : Source[index]) <= Result3[index]
+               && Bars[index].High <= Result3[index];*/
+
             }
             else
             {
@@ -526,10 +648,34 @@ namespace cAlgo
             return false;
         }
 
+        private bool EMAsDisjoint(int index)
+        {
+            // 1 1
+            // 1 0 
+            // 0 1
+            // 0 0
+            return (Result1[index] - Result2[index] < 0) == (Result2[index] - Result3[index] < 0);
+            //if down or up, then first and second condition signs will be the same
+            /*return
+                //DOWN
+                Result1[index] - Result2[index] < 0
+             && Result2[index] - Result3[index] < 0
+                //UP
+            || Result1[index] - Result2[index] > 0
+            && Result2[index] - Result3[index] > 0;*/
+        }
+        
+
         private bool TrendDownCondition(int index)
         {
             //bar close or price is inside the zone
             //Crossed100EMADown = (index) => Bars[index].High >= Result3[index];
+            //TODO: problem here is that if called on a prehistoric bar, it will still use IsLastBar if it is true, which is not what we want
+            //Possible solutions: either pass param
+
+
+            //Last condition is opposite of crossedslowEMA
+            //3rd condition is checking that close price also hasn't crossedSlowEMA
             return Result1[index] - Result2[index] < 0
                 && Result2[index] - Result3[index] < 0
                 && (IsLastBar ? Symbol.Bid : Source[index]) <= Result3[index] 
