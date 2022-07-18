@@ -16,17 +16,16 @@ namespace cAlgo
         [Parameter("Source", DefaultValue = "Close", Group = "General")]
         public DataSeries Source { get; set; }
 
-        [Parameter(DefaultValue = 7, Step = 1, Group = "General")]
+        [Parameter(DefaultValue = 7, Step = 1, Group = "Slope Average Parameters")]
         public int AngleThreshold { get; set; }
 
-        [Parameter(DefaultValue = 5, MinValue = 1, Step = 1, Group = "General")]
+        [Parameter(DefaultValue = 5, MinValue = 1, Step = 1, Group = "Slope Average Parameters")]
         public int AngleAveragePeriods { get; set; }
 
-        [Parameter("Moving average type", DefaultValue = MovingAverageType.Exponential, Group = "General")]
-        public MovingAverageType MAType { get; set; }
+        [Parameter(DefaultValue = MovingAverageType.Exponential, Group = "Slope Average Parameters")]
+        public MovingAverageType OverallSlopeAverageMAType { get; set; }
 
         #endregion
-
 
 
 
@@ -35,11 +34,11 @@ namespace cAlgo
         [Parameter("Cloud pip distance. Increase or decrease proportional to spread.", DefaultValue = 2.7)]
         public double PipDistance { get; set; }
 
-        [Parameter("Pip buffer % to trigger 50ema trades", DefaultValue = 6, Step = 0.1)]
-        public double InnerEpsilonPercent { get; set; }
+        [Parameter(DefaultValue = 6, Step = 0.1)]
+        public double MedEMAEpsilonPercent { get; set; }
 
-        [Parameter("Pip buffer zone % to trigger 25ema trades", DefaultValue = 2.5, Step = 0.1)]
-        public double OuterEpsilonPercent { get; set; }
+        [Parameter(DefaultValue = 2.5, Step = 0.1)]
+        public double FastEMAEpsilonPercent { get; set; }
 
         [Parameter("Min bars needed after crossing slow EMA, and has closed outside zone", DefaultValue = 3)]
         public int MinBarsAfterClose { get; set; }
@@ -60,7 +59,6 @@ namespace cAlgo
 
 
 
-
         #region MA Parameters
 
         [Parameter(DefaultValue = 25, Step = 1, Group = "Fast MA Parameters")]
@@ -72,6 +70,9 @@ namespace cAlgo
         [Parameter(DefaultValue = 1, Step = 0.1, Group = "Fast MA Parameters")]
         public double FastMAAverageWeighting { get; set; }
 
+        [Parameter(DefaultValue = MovingAverageType.Simple, Group = "Fast MA Parameters")]
+        public MovingAverageType FastSlopeAverageMAType { get; set; }
+
         [Parameter(DefaultValue = 50, Step = 1, Group = "Med MA Parameters")]
         public int MedMAPeriods { get; set; }
 
@@ -81,6 +82,9 @@ namespace cAlgo
         [Parameter(DefaultValue = 1.4, Step = 0.1, Group = "Med MA Parameters")]
         public double MedMAAverageWeighting { get; set; }
 
+        [Parameter(DefaultValue = MovingAverageType.Simple, Group = "Med MA Parameters")]
+        public MovingAverageType MedSlopeAverageMAType { get; set; }
+
         [Parameter(DefaultValue = 100, Step = 1, Group = "Slow MA Parameters")]
         public int SlowMAPeriods { get; set; }
 
@@ -89,6 +93,9 @@ namespace cAlgo
 
         [Parameter(DefaultValue = 1.8, Step = 0.1, Group = "Slow MA Parameters")]
         public double SlowMAAverageWeighting { get; set; }
+
+        [Parameter(DefaultValue = MovingAverageType.Simple, Group = "Slow MA Parameters")]
+        public MovingAverageType SlowSlopeAverageMAType { get; set; }
 
         #endregion
 
@@ -125,8 +132,14 @@ namespace cAlgo
         [Output("Slow Cloud In Zone", LineColor = "Transparent", PlotType = PlotType.DiscontinuousLine)]
         public IndicatorDataSeries SlowCloudInZone { get; set; }
 
-        [Output("Take Profit 1", LineColor = "#00E08A", Thickness = 2, PlotType = PlotType.DiscontinuousLine)]
+        [Output("Take Profit 1", LineColor = "#9C61C7", Thickness = 2, PlotType = PlotType.DiscontinuousLine)]
         public IndicatorDataSeries TakeProfitLine1 { get; set; }
+
+        [Output("Fast EMA open position line", LineColor = "#02AFF1", Thickness = 1.5f, PlotType = PlotType.DiscontinuousLine)]
+        public IndicatorDataSeries FastEMAOpenPositionLine { get; set; }
+
+        [Output("Fast EMA TP1", LineColor = "#2FFF22", Thickness = 2, PlotType = PlotType.DiscontinuousLine)]
+        public IndicatorDataSeries FastEMATakeProfitLine1 { get; set; }
 
         [Output("Inner Epsilon Line", LineColor = "Green", Thickness = 1, PlotType = PlotType.DiscontinuousLine)]
         public IndicatorDataSeries InnerEpsilonLine { get; set; }
@@ -138,7 +151,7 @@ namespace cAlgo
         public IndicatorDataSeries EMADistanceOutput { get; set; }
 
         [Output("Inner Zone Percentage", LineColor = "Transparent")]
-        public IndicatorDataSeries InnerZonePercentOutput { get; set; }
+        public IndicatorDataSeries ZonePercentOutput { get; set; }
 
         #endregion
     }

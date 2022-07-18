@@ -44,12 +44,13 @@ namespace cAlgo
 
         #region Calc values
 
-        public double EMADistance { get; set; }
         public bool ConditionMet { get; set; }
+        public bool CanTrade { get { return ConditionMet && TripleMASlopeAverage.AngleAbove(Bars.Count - 1); } }
         public TrendDirection Direction { get; set; }
         private bool CrossedSlowEMA { get; set; }
         private bool ClosedAfterCross { get; set; }
         private int TrendCount { get; set; }
+        private int RestartTrendCount { get; set; }
         public bool IsTrending
         {
             get { return TrendCount >= MinimumBarsForTrend; }
@@ -78,6 +79,11 @@ namespace cAlgo
             get { return index => Bars[index].Low <= Result3[index]; }
         }
 
+        //TODO: put elsewhere
+        public double EMADistance(int index) 
+        { 
+            return Math.Abs(EMADistanceOutput[index]); 
+        }
 
         private int BarCrossedIndex { get; set; }
 
@@ -92,8 +98,11 @@ namespace cAlgo
             FastEMA = Indicators.ExponentialMovingAverage(Source, FastMAPeriods);
             MedEMA = Indicators.ExponentialMovingAverage(Source, MedMAPeriods);
             SlowEMA = Indicators.ExponentialMovingAverage(Source, SlowMAPeriods);
-            TripleMASlopeAverage = Indicators.GetIndicator<TripleMASlopeAverage>(Source, AngleThreshold, AngleAveragePeriods, MAType, FastMAPeriods, FastMAAveragePeriods, FastMAAverageWeighting, MedMAPeriods, MedMAAveragePeriods, MedMAAverageWeighting,
-            SlowMAPeriods, SlowMAAveragePeriods, SlowMAAverageWeighting);
+            TripleMASlopeAverage = 
+                Indicators.GetIndicator<TripleMASlopeAverage>(Source, AngleThreshold, AngleAveragePeriods, OverallSlopeAverageMAType, 
+                                                              FastMAPeriods, FastMAAveragePeriods, FastMAAverageWeighting, FastSlopeAverageMAType,
+                                                              MedMAPeriods, MedMAAveragePeriods, MedMAAverageWeighting, MedSlopeAverageMAType,
+                                                              SlowMAPeriods, SlowMAAveragePeriods, SlowMAAverageWeighting, SlowSlopeAverageMAType);
             ZoneOutputs = new List<IndicatorDataSeries> 
             {
                 FastCloud,
@@ -103,6 +112,8 @@ namespace cAlgo
                 SlowCloudFull,
                 SlowCloudInZone,
                 TakeProfitLine1,
+                FastEMAOpenPositionLine,
+                FastEMATakeProfitLine1,
                 InnerEpsilonLine,
                 OuterEpsilonLine
             };
@@ -116,8 +127,6 @@ namespace cAlgo
 
         private void Bars_BarOpened(BarOpenedEventArgs obj)
         {
-            //So in here want to have functionality that is checked on bar close/open
-
             //new bar is opened.
             //so we care about the previous bar, right?
             var prevBarIndex = Bars.Count - 2;
@@ -152,7 +161,7 @@ namespace cAlgo
         }
 
 
-        #region Calculations
+        #region cTrader Events
         public override void Calculate(int index)
         {
             //Print("In calculate");
@@ -162,7 +171,7 @@ namespace cAlgo
 
             EMADistanceOutput[index] = (FastEMA.Result[index] - SlowEMA.Result[index]) / Symbol.PipSize;
             var firstZoneDistance = FastEMA.Result[index] - MedEMA.Result[index];
-            InnerZonePercentOutput[index] = 100 * firstZoneDistance / Symbol.PipSize / EMADistanceOutput[index];
+            ZonePercentOutput[index] = 100 * firstZoneDistance / Symbol.PipSize / EMADistanceOutput[index];
 
             //increment trendcount if not lastbar cus then we know.
 
@@ -214,14 +223,6 @@ namespace cAlgo
             return IsTrending && ConditionMet && CrossedZone(index);
         }
 
-        private void StartCoolDown(int index)
-        {
-            CrossedSlowEMA = true;
-            TrendCount = 0;
-            BarCrossedIndex = index;
-            ConditionMet = false;
-        }
-
         private double PriceWick(int index)
         {
             if (IsLastBar)
@@ -270,10 +271,13 @@ namespace cAlgo
         /// <param name="index"></param>
         private void DrawZone(int index)
         {
-            TakeProfitLine1[index] = MedEMA.Result[index] + (FastEMA.Result[index] - MedEMA.Result[index]) * 2;
+            var outerZoneDistance = FastEMA.Result[index] - MedEMA.Result[index];
 
-            InnerEpsilonLine[index] = MedEMA.Result[index] + EMADistanceOutput[index] * (InnerEpsilonPercent * Symbol.PipSize) / 100;
-            OuterEpsilonLine[index] = FastEMA.Result[index] + EMADistanceOutput[index] * (OuterEpsilonPercent * Symbol.PipSize) / 100;
+            TakeProfitLine1[index] = MedEMA.Result[index] + outerZoneDistance * 2;
+            FastEMAOpenPositionLine[index] = MedEMA.Result[index] + outerZoneDistance * 1.5;
+            FastEMATakeProfitLine1[index] = MedEMA.Result[index] + outerZoneDistance * 3;
+            InnerEpsilonLine[index] = MedEMA.Result[index] + EMADistanceOutput[index] * (MedEMAEpsilonPercent * Symbol.PipSize) / 100;
+            OuterEpsilonLine[index] = FastEMA.Result[index] + EMADistanceOutput[index] * (FastEMAEpsilonPercent * Symbol.PipSize) / 100;
 
             var priceIsInZone = PriceInOuterZone(index);
 
@@ -340,7 +344,7 @@ namespace cAlgo
             Text += "Calculated Risk Amount : " + Symbol.NormalizeVolumeInUnits(riskUnits, RoundingMode.Down) * riskPerUnit + "\n";
             Text += "Stop Loss Pips : " + stopLoss + "\n";
             Text += "EMADistance : " + EMADistanceOutput[index] + "\n";
-            Text += "Inner Zone % : " + InnerZonePercentOutput[index] + "\n";
+            Text += "Inner Zone % : " + ZonePercentOutput[index] + "\n";
             Text += "Margin for 0.5%: " + requiredMargin + "\n";
             Text += "Lots for £300: " + lotsForMargin + "\n";
             Text += "Vol for £300: " + volForMargin + "\n";
@@ -371,8 +375,33 @@ namespace cAlgo
         private bool ClosedOutsideZone(int index)
         {
             var dir = (int)Direction;
+            var price = index == Bars.Count - 1 ? Price : Bars[index].Close;
 
-            return dir * (Bars[index].Close - Result1[index]) >= 0;
+            return dir * (price - Result1[index]) >= 0;
+        }
+
+
+        private void StartCoolDown(int index)
+        {
+            CrossedSlowEMA = true;
+            RestartTrendCount = TrendCount;
+            TrendCount = 0;
+            BarCrossedIndex = index;
+            ConditionMet = false;
+            //CanTrade = false;
+        }
+
+        public void CoolDown()
+        {
+            StartCoolDown(Bars.Count - 1);
+        }
+
+        public void CancelCoolDown()
+        {
+            CrossedSlowEMA = false;
+            ClosedAfterCross = false;
+            TrendCount = RestartTrendCount + (Bars.Count - 1 - BarCrossedIndex);
+            BarCrossedIndex = -1;
         }
 
         private bool CoolingDownAfterCrossSlowEMA(int index, bool barOpen = false)
@@ -467,6 +496,7 @@ namespace cAlgo
             var emaDirection = GetEMADirection(index);
             if (CrossedZone(index))
                 return ConditionMet = false;
+                //return ConditionMet = CanTrade = false;
             //DOWN high cross slowema
 
             // 6 - 5 >= 0
@@ -491,9 +521,7 @@ namespace cAlgo
 
         private TrendDirection GetEMADirection(int index)
         {
-            var emasDisjoint = EMAsDisjoint(index);
-
-            if (emasDisjoint)
+            if (EMAsDisjoint(index))
             {
                 //get the direction.
                 //either use fast - slow, or calculate from EMAsDisjoint
@@ -505,11 +533,6 @@ namespace cAlgo
 
                 Direction = EMADistanceOutput[index] > 0 ? TrendDirection.Up : TrendDirection.Down;
             }
-                /*return Result1[index] - Result2[index] < 0
-               && Result2[index] - Result3[index] < 0
-               && (IsLastBar ? Symbol.Bid : Source[index]) <= Result3[index]
-               && Bars[index].High <= Result3[index];*/
-
             else
             {
                 Direction = TrendDirection.Straight;
@@ -549,7 +572,7 @@ namespace cAlgo
             && Result2[index] - Result3[index] > 0;*/
 
 
-                private bool TrendDownCondition(int index)
+        /*private bool TrendDownCondition(int index)
         {
             //bar close or price is inside the zone
             //Crossed100EMADown = (index) => Bars[index].High >= Result3[index];
@@ -568,7 +591,7 @@ namespace cAlgo
             //bar close or price is inside the zone
             return Result1[index] > Result2[index] && Result2[index] > Result3[index] && (IsLastBar ? Symbol.Ask : Source[index]) >= Result3[index] && Bars[index].Low >= Result3[index];
             //bar open is also in the zone
-        }
+        }*/
 
         #endregion
 
