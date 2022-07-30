@@ -54,6 +54,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TripleEMA.HelperFunctions.cs" />
     <Compile Include="TripleEMA.Parameters.cs" />
+    <Compile Include="Types.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
