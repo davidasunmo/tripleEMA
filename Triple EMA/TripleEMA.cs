@@ -39,9 +39,13 @@ namespace cAlgo
         public ExponentialMovingAverage SlowEMA { get; private set; }
 
         //TODO: optimize these later
-        public IndicatorDataSeries InnerEpsilon { get; private set; }
+        public ListDefault InnerEpsilon { get; private set; }
 
-        public IndicatorDataSeries OuterEpsilon { get; private set; }
+        public ListDefault OuterEpsilon { get; private set; }
+
+        public ListDefault EMADistanceOutput { get; private set; }
+
+        public ListDefault ZonePercentOutput { get; private set; }
 
         public TripleMASlopeAverage TripleMASlopeAverage { get; set; }
 
@@ -105,6 +109,8 @@ namespace cAlgo
 
             InnerEpsilon = new ListDefault();
             OuterEpsilon = new ListDefault();
+            EMADistanceOutput = new ListDefault();
+            ZonePercentOutput = new ListDefault();
             FastEMA = Indicators.ExponentialMovingAverage(Source, FastMAPeriods);
             MedEMA = Indicators.ExponentialMovingAverage(Source, MedMAPeriods);
             SlowEMA = Indicators.ExponentialMovingAverage(Source, SlowMAPeriods);
@@ -177,7 +183,6 @@ namespace cAlgo
 
             EMADistanceOutput[index] = (FastEMA.Result[index] - SlowEMA.Result[index]) / Symbol.PipSize;
 
-            //TODO: optimise epsilon calculate with use in scalpingbot. Or just have a separate faster tripleEma indicator
             InnerEpsilon[index] = MedEMA.Result[index] + EMADistanceOutput[index] * (MedEMAEpsilonPercent * Symbol.PipSize) / 100;
             OuterEpsilon[index] = FastEMA.Result[index] + EMADistanceOutput[index] * (FastEMAEpsilonPercent * Symbol.PipSize) / 100;
             var firstZoneDistance = FastEMA.Result[index] - MedEMA.Result[index];

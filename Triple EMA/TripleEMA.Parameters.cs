@@ -147,12 +147,6 @@ namespace cAlgo
         [Output("Outer Epsilon Line", LineColor = "Green", Thickness = 1, PlotType = PlotType.DiscontinuousLine)]
         public IndicatorDataSeries OuterEpsilonLine { get; set; }
 
-        [Output("EMA Distance", LineColor = "Transparent")]
-        public IndicatorDataSeries EMADistanceOutput { get; set; }
-
-        [Output("Inner Zone Percentage", LineColor = "Transparent")]
-        public IndicatorDataSeries ZonePercentOutput { get; set; }
-
         #endregion
     }
 }
