@@ -585,7 +585,7 @@ namespace cAlgo
             //if down or up, then first and second condition signs will be the same
         }
     }
-        /*return
+    /*return
                 //DOWN
                 Result1[index] - Result2[index] < 0
              && Result2[index] - Result3[index] < 0
@@ -594,7 +594,7 @@ namespace cAlgo
             && Result2[index] - Result3[index] > 0;*/
 
 
-        /*private bool TrendDownCondition(int index)
+    /*private bool TrendDownCondition(int index)
         {
             //bar close or price is inside the zone
             //Crossed100EMADown = (index) => Bars[index].High >= Result3[index];
@@ -615,6 +615,6 @@ namespace cAlgo
             //bar open is also in the zone
         }*/
 
-        #endregion
+    #endregion
 
-        }
+}
