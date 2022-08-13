@@ -46,6 +46,9 @@ namespace cAlgo
         [Parameter("Min bars needed after crossing slow EMA, but hasn't closed outside zone", DefaultValue = 7)]
         public int MinBarsAfterCross { get; set; }
 
+        [Parameter(DefaultValue = false)]
+        public bool WaitForCloseAfterCooldown { get; set; }
+
         [Parameter(DefaultValue = 7)]
         public int MinimumBarsForTrend { get; set; }
 
@@ -104,13 +107,13 @@ namespace cAlgo
         #region Output Lines
 
         [Output("Fast EMA", LineColor = "Turquoise", Thickness = 2)]
-        public IndicatorDataSeries Result1 { get; set; }
+        public IndicatorDataSeries FastEmaOutput { get; set; }
 
         [Output("Medium EMA", LineColor = "Black", Thickness = 2)]
-        public IndicatorDataSeries Result2 { get; set; }
+        public IndicatorDataSeries MedEmaOutput { get; set; }
 
         [Output("Slow EMA", LineColor = "Red", Thickness = 2)]
-        public IndicatorDataSeries Result3 { get; set; }
+        public IndicatorDataSeries SlowEmaOutput { get; set; }
 
         [Output("Fast Cloud", LineColor = "Transparent", PlotType = PlotType.DiscontinuousLine)]
         public IndicatorDataSeries FastCloud { get; set; }

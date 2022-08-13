@@ -197,5 +197,40 @@ namespace cAlgo
 
         #endregion
 
+        #region Indicator Helpers
+
+        public bool PriceCrossedValueAgainstDirection(double price, double value)
+        {
+            var dir = (int)Direction;
+            return dir * (price - value) < 0;
+        }
+
+        public bool PriceCrossedValueAgainstDirection(double value)
+        {
+            var dir = (int)Direction;
+            return dir * (Price - value) < 0;
+        }
+
+        //TODO: change this cus pricewick is using low and high to see if in zone, which is incorrect; should technically be close
+        public bool PriceCrossedLineAgainstDirection(int index, DataSeries series)
+        {
+            var price = PriceWick(index);
+            var value = series[index];
+
+            return PriceCrossedValueAgainstDirection(price, value);
+        }
+
+        public bool PriceCrossedValueWithDirection(double value)
+        {
+            return !PriceCrossedValueAgainstDirection(value);
+        }
+
+        public bool PriceCrossedLineWithDirection(int index, DataSeries series)
+        {
+            return !PriceCrossedLineAgainstDirection(index, series);
+        }
+
+        #endregion
+
     }
 }
