@@ -58,6 +58,9 @@ namespace cAlgo
         [Parameter("Minimum % of total EMA distance that medium to slow EMA needs to be", DefaultValue = 13)]
         public double MinimumSecondZonePercent { get; set; }
 
+        [Parameter(DefaultValue = 0)]
+        public double MinFastEmaZonePips { get; set; }
+
         #endregion
 
 

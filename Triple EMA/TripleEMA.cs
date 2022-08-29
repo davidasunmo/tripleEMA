@@ -56,13 +56,13 @@ namespace cAlgo
         public bool ConditionMet { get; set; }
         public bool CanTrade
         {
-            get { return ConditionMet && TripleMASlopeAverage.AngleAbove(Bars.Count - 1); }
+            get { return IsTrending && ConditionMet && TripleMASlopeAverage.AngleAbove(Bars.Count - 1); }
         }
         public TrendDirection Direction { get; set; }
         private bool CoolingDown { get; set; }
         private bool ClosedAfterCross { get; set; }
         private bool WasTrending { get; set; }
-        private int TrendCount { get; set; }
+        public int TrendCount { get; set; }
         private int RestartTrendCount { get; set; }
         public bool IsTrending
         {
@@ -462,10 +462,11 @@ namespace cAlgo
         private bool IsConditionMet(int index)
         {
             var emaDistance = (double)Direction * EMADistanceValues[index];
+            var fastEmaZoneDistancePips = emaDistance * ZonePercentValues[index] / 100;
 
             var withinRatio = IsWithinZoneRatio(index);
 
-            ConditionMet = emaDistance >= PipDistance && withinRatio;
+            ConditionMet = emaDistance >= PipDistance && fastEmaZoneDistancePips >= MinFastEmaZonePips && withinRatio;
 
             return ConditionMet;
         }
