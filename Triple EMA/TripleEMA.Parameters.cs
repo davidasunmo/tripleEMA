@@ -16,13 +16,13 @@ namespace cAlgo
         [Parameter("Source", DefaultValue = "Close", Group = "General")]
         public DataSeries Source { get; set; }
 
-        [Parameter(DefaultValue = 7, Step = 1, Group = "Slope Average Parameters")]
+        [Parameter(DefaultValue = 15, Step = 1, Group = "Slope Average Parameters")]
         public int AngleThreshold { get; set; }
 
-        [Parameter(DefaultValue = 5, MinValue = 1, Step = 1, Group = "Slope Average Parameters")]
+        [Parameter(DefaultValue = 25, MinValue = 1, Step = 1, Group = "Slope Average Parameters")]
         public int AngleAveragePeriods { get; set; }
 
-        [Parameter(DefaultValue = MovingAverageType.Exponential, Group = "Slope Average Parameters")]
+        [Parameter(DefaultValue = MovingAverageType.Simple, Group = "Slope Average Parameters")]
         public MovingAverageType OverallSlopeAverageMAType { get; set; }
 
         #endregion
@@ -31,7 +31,7 @@ namespace cAlgo
 
         #region Tuning Parameters
 
-        [Parameter("Cloud pip distance. Increase or decrease proportional to spread.", DefaultValue = 2.7)]
+        [Parameter("Cloud pip distance. Increase or decrease proportional to spread.", DefaultValue = 13)]
         public double PipDistance { get; set; }
 
         [Parameter(DefaultValue = 6, Step = 0.1)]
@@ -58,7 +58,7 @@ namespace cAlgo
         [Parameter("Minimum % of total EMA distance that medium to slow EMA needs to be", DefaultValue = 13)]
         public double MinimumSecondZonePercent { get; set; }
 
-        [Parameter(DefaultValue = 0)]
+        [Parameter(DefaultValue = 9)]
         public double MinFastEmaZonePips { get; set; }
 
         #endregion
@@ -76,7 +76,7 @@ namespace cAlgo
         [Parameter(DefaultValue = 1, Step = 0.1, Group = "Fast MA Parameters")]
         public double FastMAAverageWeighting { get; set; }
 
-        [Parameter(DefaultValue = MovingAverageType.Simple, Group = "Fast MA Parameters")]
+        [Parameter(DefaultValue = MovingAverageType.Exponential, Group = "Fast MA Parameters")]
         public MovingAverageType FastSlopeAverageMAType { get; set; }
 
         [Parameter(DefaultValue = 50, Step = 1, Group = "Med MA Parameters")]
